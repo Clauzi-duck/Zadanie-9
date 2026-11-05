@@ -32,4 +32,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .msg { padding: 8px 12px; border-radius: 10px; max-width: 85%; white-space: pre-wrap; }
 .msg.user { align-self: flex-end; background: #dbe4ff; }
 .msg.bot { align-self: flex-start; background: #f1f3f5; }
+.choices { display: grid; gap: 8px; margin: 12px 0; }
+.choice { display: flex; align-items: flex-start; gap: 8px; padding: 10px; border: 1px solid #dde0e6; border-radius: 6px; cursor: pointer; }
+.choice:has(input:checked) { border-color: #3b5bdb; background: #eef2ff; }
+.choice input { width: auto; margin: 4px 0 0; }
 @media (max-width: 760px) { .app { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 1px solid #dde0e6; } }

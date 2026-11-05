@@ -1,4 +1,4 @@
-import type { Message } from "./types";
+import type { Message, QuizQuestion, QuizResult } from "./types";
 
 async function post<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -14,7 +14,14 @@ async function post<T>(url: string, body: unknown): Promise<T> {
 export const chat = (topic: string, messages: Message[], hintLevel: number) =>
   post<{ reply: string }>("/api/chat", { topic, messages, hintLevel });
 
-export const getQuiz = (topic: string) => post<{ questions: string[] }>("/api/quiz", { topic });
+export const getQuiz = (topic: string) => post<{ questions: QuizQuestion[] }>("/api/quiz", { topic });
 
 export const evaluate = (topic: string, question: string, answer: string) =>
-  post<{ correct: boolean; feedback: string }>("/api/evaluate", { topic, question, answer });
+  post<QuizResult>("/api/evaluate", { topic, question, answer });
+
+export const evaluateOpen = (
+  topic: string,
+  question: string,
+  answer: string,
+  expectedPoints: string[],
+) => post<QuizResult>("/api/evaluate", { topic, question, answer, expectedPoints });
