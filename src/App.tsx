@@ -4,12 +4,13 @@ import { ProgressBar } from "./components/ProgressBar";
 import { Quiz } from "./components/Quiz";
 import { StudyPlan } from "./components/StudyPlan";
 import { MistakeReview } from "./components/MistakeReview";
+import { Help } from "./components/Help";
 import { TopicInput } from "./components/TopicInput";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import type { ExamSchedule, LearningObjective, Message, StudyMistake, Topic } from "./types";
 
 type Tab = "chat" | "quiz" | "plan" | "mistakes";
-type View = "topics" | "study";
+type View = "topics" | "study" | "help";
 
 const TAB_LABELS: Record<Tab, string> = {
   chat: "Nauka",
@@ -65,11 +66,41 @@ export default function App() {
     const topic = topics.find((item) => item.id === id);
     if (!topic) return;
     const existing = topic.mistakes ?? [];
-    const known = new Set(existing.map((mistake) => `${mistake.question}\n${mistake.answer}`));
+    const missedByKey = new Map(missed.map((mistake) => [`${mistake.question}\n${mistake.answer}`, mistake]));
+    const now = new Date().toISOString();
+    const updated = existing.map((mistake) => {
+      const current = missedByKey.get(`${mistake.question}\n${mistake.answer}`);
+      if (!current || !mistake.resolvedAt) return mistake;
+      const reactivated = { ...mistake, feedback: current.feedback, createdAt: now };
+      delete reactivated.resolvedAt;
+      return reactivated;
+    });
+    const known = new Set(updated.map((mistake) => `${mistake.question}\n${mistake.answer}`));
     const additions = missed
       .filter((mistake) => !known.has(`${mistake.question}\n${mistake.answer}`))
-      .map((mistake) => ({ ...mistake, id: crypto.randomUUID(), createdAt: new Date().toISOString() }));
-    updateTopic(id, { mistakes: [...existing, ...additions].slice(-30) });
+      .map((mistake) => ({ ...mistake, id: crypto.randomUUID(), createdAt: now }));
+    updateTopic(id, { mistakes: [...updated, ...additions].slice(-30) });
+  };
+
+  const setMistakeResolved = (topicId: string, mistakeId: string, resolved: boolean) => {
+    const topic = topics.find((item) => item.id === topicId);
+    if (!topic) return;
+    updateTopic(topicId, {
+      mistakes: (topic.mistakes ?? []).map((mistake) => {
+        if (mistake.id !== mistakeId) return mistake;
+        if (resolved) return { ...mistake, resolvedAt: new Date().toISOString() };
+        const restored = { ...mistake };
+        delete restored.resolvedAt;
+        return restored;
+      }),
+    });
+  };
+
+  const openStudy = () => {
+    if (!selected && topics.length) setSelectedId(topics[0].id);
+    setTab("chat");
+    setPracticeMistake(null);
+    setView("study");
   };
 
   return (
@@ -95,6 +126,13 @@ export default function App() {
               onClick={() => setView("study")}
             >
               Nauka
+            </button>
+            <button
+              className={view === "help" ? "active" : ""}
+              aria-current={view === "help" ? "page" : undefined}
+              onClick={() => setView("help")}
+            >
+              Jak korzystać?
             </button>
           </nav>
 
@@ -159,6 +197,12 @@ export default function App() {
               </div>
             )}
           </section>
+        ) : view === "help" ? (
+          <Help
+            hasTopics={topics.length > 0}
+            onOpenTopics={() => setView("topics")}
+            onOpenStudy={openStudy}
+          />
         ) : selected ? (
           <>
             {topics.length > 1 && (
@@ -210,8 +254,8 @@ export default function App() {
                 >
                   <span className="tab-index">0{index + 1}</span>
                   {TAB_LABELS[tabName]}
-                  {tabName === "mistakes" && selected.mistakes?.length ? (
-                    <span className="tab-count">{selected.mistakes.length}</span>
+                  {tabName === "mistakes" && selected.mistakes?.filter((mistake) => !mistake.resolvedAt).length ? (
+                    <span className="tab-count">{selected.mistakes.filter((mistake) => !mistake.resolvedAt).length}</span>
                   ) : null}
                 </button>
               ))}
@@ -254,6 +298,8 @@ export default function App() {
                   <MistakeReview
                     mistakes={selected.mistakes ?? []}
                     onPractice={(mistake) => { setPracticeMistake(mistake); setPracticeMessages([]); }}
+                    onResolve={(mistakeId) => setMistakeResolved(selected.id, mistakeId, true)}
+                    onReopen={(mistakeId) => setMistakeResolved(selected.id, mistakeId, false)}
                   />
                   {practiceMistake && (
                     <div className="practice-session">

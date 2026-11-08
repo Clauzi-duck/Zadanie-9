@@ -35,8 +35,7 @@ function createSchedule(objectives: LearningObjective[], examDate: string, daily
     date.setDate(date.getDate() + index);
     return { date, newObjectives: [] as LearningObjective[], reviewObjectives: [] as LearningObjective[] };
   });
-  const activeObjectives = objectives.filter((objective) => !objective.completed);
-  const objectivesToSchedule = activeObjectives.length ? activeObjectives : objectives;
+  const objectivesToSchedule = objectives;
   const capacity = Math.max(1, Math.floor(dailyMinutes / 20));
   const studyDayCount = Math.min(dayCount, Math.ceil(objectivesToSchedule.length / capacity));
 
@@ -161,7 +160,7 @@ export function StudyPlan({
           <button onClick={saveSchedule}>Zaplanuj naukę</button>
         </div>
         {savedSchedule && (
-          <p className="muted">Cel: około {savedSchedule.dailyMinutes} minut dziennie, maksymalnie {capacity} nowe cele dziennie. Plan uwzględnia powtórki po 1 i 3 dniach.</p>
+          <p className="muted">Cel: około {savedSchedule.dailyMinutes} minut dziennie, maksymalnie {capacity} nowe cele dziennie. Odhaczenie celu aktualizuje listę i harmonogram; powtórki są po 1 i 3 dniach.</p>
         )}
       </div>
 
@@ -174,8 +173,28 @@ export function StudyPlan({
           {days.map((day) => (
             <li key={dateInputValue(day.date)}>
               <time dateTime={dateInputValue(day.date)}>{day.date.toLocaleDateString("pl-PL", { weekday: "short", day: "numeric", month: "short" })}</time>
-              {day.newObjectives.length > 0 && <p><b>Nowe:</b> {day.newObjectives.map((objective) => objective.title).join(", ")}</p>}
-              {day.reviewObjectives.length > 0 && <p><b>Powtórka:</b> {day.reviewObjectives.map((objective) => objective.title).join(", ")}</p>}
+              {day.newObjectives.length > 0 && (
+                <div className="schedule-task-group">
+                  <b>Cele</b>
+                  {day.newObjectives.map((objective) => (
+                    <label className={`schedule-objective ${objective.completed ? "completed" : ""}`} key={`new-${objective.id}`}>
+                      <input type="checkbox" checked={objective.completed} onChange={() => toggleObjective(objective.id)} />
+                      <span>{objective.title}<small>{objective.completed ? "Opanowane" : "Do opanowania"}</small></span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {day.reviewObjectives.length > 0 && (
+                <div className="schedule-task-group">
+                  <b>Powtórki</b>
+                  {day.reviewObjectives.map((objective) => (
+                    <label className={`schedule-objective ${objective.completed ? "completed" : ""}`} key={`review-${objective.id}`}>
+                      <input type="checkbox" checked={objective.completed} onChange={() => toggleObjective(objective.id)} />
+                      <span>{objective.title}<small>{objective.completed ? "Opanowane" : "Do powtórki"}</small></span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </li>
           ))}
         </ol>

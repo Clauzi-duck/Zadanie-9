@@ -42,6 +42,7 @@ export interface StudyMistake {
   answer: string;
   feedback: string;
   createdAt: string;
+  resolvedAt?: string;
 }
 
 export interface ExamSchedule {
