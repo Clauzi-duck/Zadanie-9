@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import path from "node:path";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -264,4 +265,15 @@ app.post("/api/evaluate", async (req, res) => {
 });
 
 const port = Number(process.env.PORT ?? 3001);
+const distPath = path.resolve(process.cwd(), "dist");
+
+app.get("/healthz", (_req, res) => res.status(200).json({ status: "ok" }));
+app.use(express.static(distPath));
+app.get("*", (req, res, next) => {
+  if (req.path.startsWith("/api/")) return next();
+  res.sendFile(path.join(distPath, "index.html"), (error) => {
+    if (error) next(error);
+  });
+});
+
 app.listen(port, () => console.log(`API działa na http://localhost:${port}`));
