@@ -4,11 +4,13 @@ import type { Message } from "../types";
 
 interface Props {
   topic: string;
+  material: string;
+  focus?: string;
   messages: Message[];
   onChange: (messages: Message[]) => void;
 }
 
-export function Chat({ topic, messages, onChange }: Props) {
+export function Chat({ topic, material, focus = "", messages, onChange }: Props) {
   const [input, setInput] = useState("");
   const [hint, setHint] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -24,11 +26,11 @@ export function Chat({ topic, messages, onChange }: Props) {
     setError("");
   }, [topic]);
 
-  const ask = async (history: Message[], level: number) => {
+  const ask = async (history: Message[], level: number, focusText = "") => {
     setLoading(true);
     setError("");
     try {
-      const { reply } = await chat(topic, history, level);
+      const { reply } = await chat(topic, material, history, level, focusText);
       onChange([...history, { role: "bot", text: reply }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Błąd");
@@ -36,6 +38,10 @@ export function Chat({ topic, messages, onChange }: Props) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (focus && messages.length === 0) void ask([], 0, focus);
+  }, [focus]);
 
   const send = () => {
     const text = input.trim();

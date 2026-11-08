@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { evaluateOpen, getQuiz } from "../api";
-import type { QuizQuestion, QuizResult } from "../types";
+import type { QuizQuestion, QuizResult, StudyMistake } from "../types";
 
 interface Props {
   topic: string;
+  material: string;
   onPassed: () => void;
+  onMistakes: (mistakes: Omit<StudyMistake, "id" | "createdAt">[]) => void;
 }
 
-export function Quiz({ topic, onPassed }: Props) {
+export function Quiz({ topic, material, onPassed, onMistakes }: Props) {
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [answers, setAnswers] = useState<string[]>([]);
   const [results, setResults] = useState<(QuizResult | null)[]>([]);
@@ -18,7 +20,7 @@ export function Quiz({ topic, onPassed }: Props) {
     setLoading(true);
     setError("");
     try {
-      const { questions } = await getQuiz(topic);
+      const { questions } = await getQuiz(topic, material);
       setQuestions(questions);
       setAnswers(questions.map(() => ""));
       setResults(questions.map(() => null));
@@ -46,9 +48,22 @@ export function Quiz({ topic, onPassed }: Props) {
                 ? "Dobrze!"
                 : "Nie tym razem. Przemyśl temat i spróbuj ponownie.",
             })
-          : evaluateOpen(topic, q.question, answers[i], q.expectedPoints)),
+          : evaluateOpen(topic, material, q.question, answers[i], q.expectedPoints)),
       );
       setResults(res);
+      onMistakes(
+        res.flatMap((result, index) => {
+          if (!result || result.correct) return [];
+          const question = questions[index];
+          return [{
+            question: question.question,
+            answer: question.type === "choice"
+              ? question.options[Number(answers[index])] ?? "Brak odpowiedzi"
+              : answers[index],
+            feedback: result.feedback,
+          }];
+        }),
+      );
       if (res.length && res.every((r) => r?.correct)) onPassed();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Błąd");
@@ -59,7 +74,9 @@ export function Quiz({ topic, onPassed }: Props) {
 
   if (questions.length === 0) {
     return (
-      <div>
+      <div className="quiz-empty">
+        <h3>Sprawdź, co już wiesz</h3>
+        <p>Krótki quiz pomoże Ci utrwalić temat i wskazać zagadnienia warte powtórki.</p>
         <button onClick={start} disabled={loading}>
           {loading ? "Generuję…" : "Generuj quiz"}
         </button>
@@ -97,12 +114,20 @@ export function Quiz({ topic, onPassed }: Props) {
               ))}
             </div>
           ) : (
-            <textarea
-              rows={3}
-              value={answers[i]}
-              onChange={(e) => setAnswers(answers.map((a, j) => (j === i ? e.target.value : a)))}
-              placeholder="Napisz własnymi słowami"
-            />
+            <>
+              <p className="muted">{{
+                explain: "Wyjaśnij własnymi słowami",
+                example: "Podaj własny przykład",
+                apply: "Zastosuj wiedzę w nowej sytuacji",
+                compare: "Porównaj i wskaż różnice",
+              }[q.taskType]}</p>
+              <textarea
+                rows={3}
+                value={answers[i]}
+                onChange={(e) => setAnswers(answers.map((a, j) => (j === i ? e.target.value : a)))}
+                placeholder="Napisz własnymi słowami"
+              />
+            </>
           )}
           {results[i] && (
             <p className={results[i]!.correct ? "ok" : "error"}>{results[i]!.feedback}</p>
